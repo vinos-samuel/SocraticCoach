@@ -1,0 +1,721 @@
+import React, { useState } from 'react';
+
+const SocraticThinkingApp = () => {
+  const [stage, setStage] = useState('initial'); // 'initial', 'questioning', 'summary', 'coaching', 'actionplan'
+  const [problem, setProblem] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [currentAnswer, setCurrentAnswer] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [coachingMessages, setCoachingMessages] = useState([]);
+  const [coachingInput, setCoachingInput] = useState('');
+  const [actionPlan, setActionPlan] = useState('');
+  const [maxQuestions] = useState(6);
+
+  const generateQuestion = async (isFirst = false) => {
+    setIsLoading(true);
+    
+    try {
+      const conversationHistory = questions.map(q => 
+        `Question: ${q.question}\nAnswer: ${q.answer}`
+      ).join('\n\n');
+      
+      const prompt = isFirst 
+        ? `You are a Socratic thinking coach. The user has described this problem: "${problem}"
+        
+        Generate a thoughtful Socratic question that will help them think more clearly about their situation. The question should:
+        - Be open-ended and thought-provoking
+        - Help them examine their assumptions
+        - Encourage deeper reflection
+        - Be specific to their situation
+        
+        Respond with ONLY the question, no additional text.`
+        
+        : `You are a Socratic thinking coach. Here's the user's original problem and our conversation so far:
+        
+        Original problem: "${problem}"
+        
+        Conversation history:
+        ${conversationHistory}
+        
+        Generate the next thoughtful Socratic question that builds on their previous responses and helps them gain deeper insights.
+        
+        Respond with ONLY the question, no additional text.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 200,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      const questionResponse = data.content[0].text.trim();
+      
+      setCurrentQuestion(questionResponse);
+      setStage('questioning');
+      
+    } catch (error) {
+      console.error('Error generating question:', error);
+      setCurrentQuestion("What aspect of this situation feels most important to you right now?");
+      setStage('questioning');
+    }
+    
+    setIsLoading(false);
+  };
+
+  const generateSummary = async () => {
+    setIsLoading(true);
+    
+    try {
+      const conversationHistory = questions.map(q => 
+        `Q: ${q.question}\nA: ${q.answer}`
+      ).join('\n\n');
+      
+      const prompt = `Based on this Socratic dialogue, provide insights and a summary:
+
+      Original problem: "${problem}"
+      
+      Dialogue:
+      ${conversationHistory}
+      
+      Provide:
+      1. Key insights discovered
+      2. A clear summary of their situation
+      3. Actionable next steps or solutions if appropriate
+      
+      Format your response in clear, encouraging language that helps them see their progress in thinking through this issue.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 600,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      setSummary(data.content[0].text);
+      setStage('summary');
+      
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setSummary("Thank you for working through these questions. You've gained valuable insights into your situation through this reflective process.");
+      setStage('summary');
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleAnswerSubmit = () => {
+    if (currentAnswer.trim()) {
+      const newQuestions = [...questions, { question: currentQuestion, answer: currentAnswer }];
+      setQuestions(newQuestions);
+      setCurrentAnswer('');
+      setCurrentQuestion('');
+      
+      // Check if we've reached the maximum number of questions
+      if (newQuestions.length >= maxQuestions) {
+        generateSummary();
+      } else {
+        generateQuestion(false);
+      }
+    }
+  };
+
+  const generateActionPlan = async () => {
+    setIsLoading(true);
+    
+    try {
+      const conversationHistory = questions.map(q => 
+        `Q: ${q.question}\nA: ${q.answer}`
+      ).join('\n\n');
+      
+      const prompt = `Based on this Socratic dialogue, create a detailed action plan:
+
+      Original problem: "${problem}"
+      
+      Dialogue:
+      ${conversationHistory}
+      
+      Create a structured action plan with:
+      
+      1. **GOAL CLARITY**: Clear objective based on their insights
+      2. **KEY DELIVERABLES**: 3-5 specific, actionable deliverables
+      3. **TIMELINE**: Realistic timeframes for each deliverable
+      4. **MILESTONES**: Check-in points and progress markers
+      5. **POTENTIAL OBSTACLES**: What might get in the way and how to handle them
+      6. **SUCCESS METRICS**: How they'll know they're making progress
+      
+      Format this as a clear, actionable plan they can reference and follow. Use encouraging, confident language that builds on the insights they've discovered.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 800,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      setActionPlan(data.content[0].text);
+      setStage('actionplan');
+      
+    } catch (error) {
+      console.error('Error generating action plan:', error);
+      setActionPlan("I'll help you create a structured plan to move forward with the insights you've discovered.");
+      setStage('actionplan');
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleStartCoaching = () => {
+    setStage('coaching');
+    setCoachingMessages([{
+      role: 'assistant',
+      content: "I'm here to help you work through your situation. I have full context of your problem and the insights you've discovered through our Socratic dialogue. What would you like to explore further or get help with?"
+    }]);
+  };
+
+  const handleCoachingSubmit = async () => {
+    if (!coachingInput.trim()) return;
+    
+    const userMessage = { role: 'user', content: coachingInput };
+    setCoachingMessages(prev => [...prev, userMessage]);
+    setCoachingInput('');
+    setIsLoading(true);
+    
+    try {
+      const conversationHistory = questions.map(q => 
+        `Q: ${q.question}\nA: ${q.answer}`
+      ).join('\n\n');
+      
+      const fullContext = `You are coaching someone through a problem. Here's the full context:
+      
+      Original problem: "${problem}"
+      
+      Socratic dialogue completed:
+      ${conversationHistory}
+      
+      Previous insights: ${summary}
+      
+      Conversation history:
+      ${coachingMessages.map(m => `${m.role}: ${m.content}`).join('\n')}
+      
+      User's latest message: ${coachingInput}
+      
+      Provide helpful, supportive coaching based on all this context.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 500,
+          messages: [{ role: "user", content: fullContext }]
+        })
+      });
+
+      const data = await response.json();
+      const assistantMessage = { role: 'assistant', content: data.content[0].text };
+      setCoachingMessages(prev => [...prev, userMessage, assistantMessage]);
+      
+    } catch (error) {
+      console.error('Error in coaching:', error);
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleKeyPress = (e, handler) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handler();
+    }
+  };
+
+  const resetApp = () => {
+    setStage('initial');
+    setProblem('');
+    setQuestions([]);
+    setCurrentQuestion('');
+    setCurrentAnswer('');
+    setSummary('');
+    setActionPlan('');
+    setCoachingMessages([]);
+    setCoachingInput('');
+  };
+
+  return (
+    <div style={{ 
+      fontFamily: 'Inter, sans-serif',
+      backgroundColor: '#CBCADB',
+      minHeight: '100vh',
+      color: '#3F3F47',
+      padding: '2rem'
+    }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h1 style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '700', 
+            marginBottom: '0.5rem',
+            background: 'linear-gradient(135deg, #3F3F47, #6B6B73)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            Socratic Thinking Coach
+          </h1>
+          <p style={{ fontSize: '1.1rem', opacity: 0.8 }}>
+            Think through your challenges with guided questions
+          </p>
+        </div>
+
+        {/* Initial Problem Input */}
+        {stage === 'initial' && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 40px rgba(63, 63, 71, 0.1)',
+            border: '1px solid rgba(63, 63, 71, 0.1)'
+          }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>
+              What's on your mind?
+            </h2>
+            <p style={{ marginBottom: '1.5rem', opacity: 0.7 }}>
+              Describe the situation, problem, or decision you're facing. I'll help you think through it step by step.
+            </p>
+            <textarea
+              value={problem}
+              onChange={(e) => setProblem(e.target.value)}
+              placeholder="Tell me about what's challenging you..."
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #E5E5E9',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontFamily: 'Inter, sans-serif',
+                resize: 'vertical',
+                minHeight: '120px',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3F3F47'}
+              onBlur={(e) => e.target.style.borderColor = '#E5E5E9'}
+            />
+            <button
+              onClick={() => generateQuestion(true)}
+              disabled={!problem.trim() || isLoading}
+              style={{
+                backgroundColor: '#3F3F47',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '0.75rem 2rem',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: problem.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                opacity: problem.trim() && !isLoading ? 1 : 0.5,
+                marginTop: '1rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {isLoading ? 'Starting...' : 'Begin Thinking'}
+            </button>
+          </div>
+        )}
+
+        {/* Previous Questions (Collapsed) */}
+        {stage === 'questioning' && questions.length > 0 && (
+          <div style={{ marginBottom: '2rem' }}>
+            {questions.map((q, index) => (
+              <div key={index} style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1rem',
+                boxShadow: '0 4px 16px rgba(63, 63, 71, 0.08)',
+                border: '1px solid rgba(63, 63, 71, 0.1)',
+                opacity: 0.9
+              }}>
+                <p style={{ 
+                  fontSize: '0.9rem', 
+                  fontWeight: '600', 
+                  marginBottom: '0.5rem',
+                  color: '#666'
+                }}>
+                  Q{index + 1}: {q.question}
+                </p>
+                <p style={{ 
+                  fontSize: '1rem', 
+                  lineHeight: '1.6',
+                  padding: '0.75rem',
+                  backgroundColor: '#F8F8FA',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E5E9'
+                }}>
+                  {q.answer}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Current Question */}
+        {stage === 'questioning' && currentQuestion && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 40px rgba(63, 63, 71, 0.1)',
+            border: '2px solid #3F3F47',
+            animation: 'slideIn 0.3s ease'
+          }}>
+            <h3 style={{ 
+              marginBottom: '1.5rem', 
+              fontSize: '1.3rem', 
+              fontWeight: '600',
+              lineHeight: '1.5'
+            }}>
+              {currentQuestion}
+            </h3>
+            <textarea
+              value={currentAnswer}
+              onChange={(e) => setCurrentAnswer(e.target.value)}
+              placeholder="Take your time to reflect and answer..."
+              onKeyPress={(e) => handleKeyPress(e, handleAnswerSubmit)}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #E5E5E9',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontFamily: 'Inter, sans-serif',
+                resize: 'vertical',
+                minHeight: '100px',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3F3F47'}
+              onBlur={(e) => e.target.style.borderColor = '#E5E5E9'}
+            />
+            <button
+              onClick={handleAnswerSubmit}
+              disabled={!currentAnswer.trim() || isLoading}
+              style={{
+                backgroundColor: '#3F3F47',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '0.75rem 2rem',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: currentAnswer.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                opacity: currentAnswer.trim() && !isLoading ? 1 : 0.5,
+                marginTop: '1rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {isLoading ? 'Processing...' : 'Submit Answer'}
+            </button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && stage !== 'coaching' && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            margin: '2rem 0',
+            boxShadow: '0 4px 16px rgba(63, 63, 71, 0.08)'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid #E5E5E9',
+              borderTop: '4px solid #3F3F47',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }} />
+            <p>Reflecting on your thoughts...</p>
+          </div>
+        )}
+
+        {/* Summary */}
+        {stage === 'summary' && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 40px rgba(63, 63, 71, 0.1)',
+            border: '1px solid rgba(63, 63, 71, 0.1)',
+            marginBottom: '2rem'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              fontSize: '1.8rem', 
+              fontWeight: '700',
+              color: '#3F3F47'
+            }}>
+              Your Insights
+            </h2>
+            <div style={{ 
+              fontSize: '1.1rem', 
+              lineHeight: '1.7',
+              whiteSpace: 'pre-line',
+              marginBottom: '2rem'
+            }}>
+              {summary}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleStartCoaching}
+                style={{
+                  backgroundColor: '#3F3F47',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '1rem 2rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  flex: '1',
+                  minWidth: '200px'
+                }}
+              >
+                Continue with Coaching
+              </button>
+              
+              <button
+                onClick={generateActionPlan}
+                style={{
+                  backgroundColor: 'white',
+                  color: '#3F3F47',
+                  border: '2px solid #3F3F47',
+                  borderRadius: '12px',
+                  padding: '1rem 2rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  flex: '1',
+                  minWidth: '200px'
+                }}
+              >
+                Build Action Plan
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Action Plan */}
+        {stage === 'actionplan' && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 40px rgba(63, 63, 71, 0.1)',
+            border: '1px solid rgba(63, 63, 71, 0.1)',
+            marginBottom: '2rem'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              fontSize: '1.8rem', 
+              fontWeight: '700',
+              color: '#3F3F47'
+            }}>
+              Your Action Plan
+            </h2>
+            <div style={{ 
+              fontSize: '1.1rem', 
+              lineHeight: '1.7',
+              whiteSpace: 'pre-line',
+              marginBottom: '2rem'
+            }}>
+              {actionPlan}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleStartCoaching}
+                style={{
+                  backgroundColor: '#3F3F47',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '1rem 2rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  flex: '1',
+                  minWidth: '200px'
+                }}
+              >
+                Discuss This Plan
+              </button>
+              
+              <button
+                onClick={resetApp}
+                style={{
+                  backgroundColor: 'white',
+                  color: '#3F3F47',
+                  border: '2px solid #3F3F47',
+                  borderRadius: '12px',
+                  padding: '1rem 2rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  flex: '1',
+                  minWidth: '200px'
+                }}
+              >
+                Start New Session
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Coaching Session */}
+        {stage === 'coaching' && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 40px rgba(63, 63, 71, 0.1)',
+            border: '1px solid rgba(63, 63, 71, 0.1)'
+          }}>
+            <h2 style={{ 
+              marginBottom: '1.5rem', 
+              fontSize: '1.8rem', 
+              fontWeight: '700',
+              color: '#3F3F47'
+            }}>
+              Coaching Session
+            </h2>
+            
+            {/* Messages */}
+            <div style={{ 
+              maxHeight: '400px', 
+              overflowY: 'auto', 
+              marginBottom: '1.5rem',
+              padding: '1rem',
+              backgroundColor: '#F8F8FA',
+              borderRadius: '12px'
+            }}>
+              {coachingMessages.map((message, index) => (
+                <div key={index} style={{
+                  marginBottom: '1rem',
+                  padding: '1rem',
+                  borderRadius: '12px',
+                  backgroundColor: message.role === 'user' ? '#3F3F47' : 'white',
+                  color: message.role === 'user' ? 'white' : '#3F3F47',
+                  marginLeft: message.role === 'user' ? '20%' : '0',
+                  marginRight: message.role === 'user' ? '0' : '20%'
+                }}>
+                  {message.content}
+                </div>
+              ))}
+              {isLoading && (
+                <div style={{ textAlign: 'center', padding: '1rem' }}>
+                  <div style={{
+                    display: 'inline-block',
+                    width: '20px',
+                    height: '20px',
+                    border: '2px solid #E5E5E9',
+                    borderTop: '2px solid #3F3F47',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                </div>
+              )}
+            </div>
+            
+            {/* Input */}
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <textarea
+                value={coachingInput}
+                onChange={(e) => setCoachingInput(e.target.value)}
+                placeholder="What would you like to explore or get help with?"
+                onKeyPress={(e) => handleKeyPress(e, handleCoachingSubmit)}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  border: '2px solid #E5E5E9',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontFamily: 'Inter, sans-serif',
+                  resize: 'vertical',
+                  minHeight: '60px',
+                  outline: 'none'
+                }}
+              />
+              <button
+                onClick={handleCoachingSubmit}
+                disabled={!coachingInput.trim() || isLoading}
+                style={{
+                  backgroundColor: '#3F3F47',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '1rem 1.5rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: coachingInput.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                  opacity: coachingInput.trim() && !isLoading ? 1 : 0.5,
+                  minWidth: '100px'
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+};
