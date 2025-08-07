@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw } from "lucide-react";
+import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -235,6 +235,113 @@ export default function SocraticCoach() {
     setCoachingInput('');
   };
 
+  // Export functions
+  const generateSessionText = (includeCoaching = false) => {
+    const timestamp = new Date().toLocaleString();
+    let content = `SOCRATIC THINKING SESSION\n`;
+    content += `Generated: ${timestamp}\n\n`;
+    content += `=== ORIGINAL PROBLEM ===\n${problem}\n\n`;
+    
+    if (questions.length > 0) {
+      content += `=== REFLECTION DIALOGUE ===\n`;
+      questions.forEach((q, index) => {
+        content += `Q${index + 1}: ${q.question}\n`;
+        content += `A${index + 1}: ${q.answer}\n\n`;
+      });
+    }
+    
+    if (summary) {
+      content += `=== INSIGHTS & SUMMARY ===\n${summary}\n\n`;
+    }
+    
+    if (actionPlan) {
+      content += `=== ACTION PLAN ===\n${actionPlan}\n\n`;
+    }
+    
+    if (includeCoaching && coachingMessages.length > 0) {
+      content += `=== COACHING CONVERSATION ===\n`;
+      coachingMessages.forEach((msg, index) => {
+        content += `${msg.role.toUpperCase()}: ${msg.content}\n\n`;
+      });
+    }
+    
+    return content;
+  };
+
+  const downloadAsText = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({
+        title: "Copied!",
+        description: "Content copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Please try downloading instead",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const shareViaEmail = (content: string, subject: string) => {
+    const emailSubject = encodeURIComponent(subject);
+    const emailBody = encodeURIComponent(content);
+    const mailtoLink = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+    window.open(mailtoLink);
+  };
+
+  const handleDownloadSession = () => {
+    const content = generateSessionText(stage === 'coaching');
+    const filename = `socratic-session-${new Date().toISOString().split('T')[0]}.txt`;
+    downloadAsText(content, filename);
+  };
+
+  const handleCopySession = () => {
+    const content = generateSessionText(stage === 'coaching');
+    copyToClipboard(content);
+  };
+
+  const handleEmailSession = () => {
+    const content = generateSessionText(stage === 'coaching');
+    const subject = `Socratic Thinking Session - ${problem.substring(0, 50)}...`;
+    shareViaEmail(content, subject);
+  };
+
+  const handleDownloadActionPlan = () => {
+    if (!actionPlan) return;
+    const content = `ACTION PLAN\nGenerated: ${new Date().toLocaleString()}\n\nOriginal Problem: ${problem}\n\n${actionPlan}`;
+    const filename = `action-plan-${new Date().toISOString().split('T')[0]}.txt`;
+    downloadAsText(content, filename);
+  };
+
+  const handleCopyActionPlan = () => {
+    if (!actionPlan) return;
+    copyToClipboard(actionPlan);
+  };
+
+  const handleDownloadCoaching = () => {
+    if (coachingMessages.length === 0) return;
+    let content = `COACHING CONVERSATION\nGenerated: ${new Date().toLocaleString()}\n\nOriginal Problem: ${problem}\n\n`;
+    coachingMessages.forEach((msg) => {
+      content += `${msg.role.toUpperCase()}: ${msg.content}\n\n`;
+    });
+    const filename = `coaching-conversation-${new Date().toISOString().split('T')[0]}.txt`;
+    downloadAsText(content, filename);
+  };
+
   const progressPercentage = (questions.length / maxQuestions) * 100;
 
   return (
@@ -434,6 +541,43 @@ export default function SocraticCoach() {
               <div className="prose prose-lg max-w-none mb-8 text-secondary leading-relaxed whitespace-pre-line">
                 {summary}
               </div>
+
+              {/* Export Options for Summary */}
+              <div className="mb-6 p-4 bg-accent/5 rounded-lg border border-accent/20">
+                <h4 className="text-sm font-semibold text-primary mb-3">Export Your Session</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleDownloadSession}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-download-session"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Download
+                  </Button>
+                  <Button
+                    onClick={handleCopySession}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-copy-session"
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    onClick={handleEmailSession}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-email-session"
+                  >
+                    <Mail className="w-4 h-4 mr-1" />
+                    Email
+                  </Button>
+                </div>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
@@ -473,6 +617,43 @@ export default function SocraticCoach() {
               <div className="prose prose-lg max-w-none mb-8 text-secondary leading-relaxed whitespace-pre-line">
                 {actionPlan}
               </div>
+
+              {/* Export Options for Action Plan */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="text-sm font-semibold text-primary mb-3">Save Your Action Plan</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleDownloadActionPlan}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-download-action-plan"
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Download Plan
+                  </Button>
+                  <Button
+                    onClick={handleCopyActionPlan}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-copy-action-plan"
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy Plan
+                  </Button>
+                  <Button
+                    onClick={handleDownloadSession}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-download-full-session"
+                  >
+                    <FileText className="w-4 h-4 mr-1" />
+                    Full Session
+                  </Button>
+                </div>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
@@ -502,14 +683,40 @@ export default function SocraticCoach() {
         {stage === 'coaching' && (
           <Card className="bg-surface shadow-lg border-primary/10 h-[600px] flex flex-col" data-testid="card-coaching">
             <CardHeader className="border-b border-primary/10 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-accent to-primary rounded-xl flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-accent to-primary rounded-xl flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold text-primary">Coaching Session</CardTitle>
+                    <p className="text-sm text-secondary">I have full context of your situation. How can I help?</p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl font-bold text-primary">Coaching Session</CardTitle>
-                  <p className="text-sm text-secondary">I have full context of your situation. How can I help?</p>
-                </div>
+                {coachingMessages.length > 1 && (
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleDownloadCoaching}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      data-testid="button-download-coaching"
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Export Chat
+                    </Button>
+                    <Button
+                      onClick={handleDownloadSession}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      data-testid="button-download-all"
+                    >
+                      <Share2 className="w-4 h-4 mr-1" />
+                      Export All
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             
