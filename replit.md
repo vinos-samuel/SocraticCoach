@@ -1,6 +1,6 @@
 # Overview
 
-This is a Socratic thinking coach web application that helps users work through problems using the Socratic method. The application guides users through a structured process of self-reflection by asking thoughtful questions, generating summaries, providing coaching, and creating action plans. It's built as a full-stack TypeScript application with a React frontend and Express backend.
+This is a comprehensive Socratic thinking coach web application that helps users work through problems using the Socratic method. The application guides users through a structured process of self-reflection by asking thoughtful questions, generating summaries, providing coaching, and creating action plans. Key features include conversation memory through threading, comprehensive export functionality, and hands-free voice interaction capabilities. It's built as a full-stack TypeScript application with a React frontend and Express backend.
 
 # User Preferences
 
@@ -38,9 +38,18 @@ Preferred communication style: Simple, everyday language.
 - **Storage Interface**: Abstracted storage layer supporting both in-memory and database implementations
 
 ## External Dependencies
-- **AI Service**: Anthropic Claude API for generating Socratic questions, summaries, coaching responses, and action plans
-- **Database**: Neon PostgreSQL serverless database
-- **UI Components**: Radix UI primitives for accessible component foundation
+- **AI Service**: Anthropic Claude API (claude-sonnet-4-20250514) for generating Socratic questions, summaries, coaching responses, and action plans
+- **Database**: Neon PostgreSQL serverless database with conversation threading
+- **Voice Integration**: Web Speech API for speech-to-text and text-to-speech functionality
+- **UI Components**: Radix UI primitives for accessible component foundation including dialog components for voice modal
 - **Development**: Replit-specific plugins for development environment integration
 - **Build Tools**: esbuild for server bundling, Vite for client bundling
 - **Deployment**: Node.js production server with static file serving
+
+## Key Features
+- **Socratic Questioning**: AI-powered progressive questioning system with 6-question limit
+- **Conversation Threading**: Database-backed conversation memory system for contextual awareness
+- **Voice Interaction**: Hands-free coaching through speech recognition and synthesis
+- **Export Functionality**: Download, copy, and email sharing of sessions and action plans  
+- **Mobile Optimization**: Responsive design with touch-friendly voice controls
+- **Real-time Processing**: Live transcription and instant AI responses during voice sessions
