@@ -32,6 +32,7 @@ export default function SocraticCoach() {
   const [maxQuestions] = useState(6);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [lastCoachResponse, setLastCoachResponse] = useState('');
+  const [isInitialVoiceModalOpen, setIsInitialVoiceModalOpen] = useState(false);
   const { toast } = useToast();
 
   const generateQuestion = async (isFirst = false) => {
@@ -225,6 +226,14 @@ export default function SocraticCoach() {
     handleCoachingSubmit();
   };
 
+  const handleInitialVoiceMessage = (message: string) => {
+    setProblem(message);
+    // Automatically start the coaching process after voice input
+    setTimeout(() => {
+      generateQuestion(true);
+    }, 500);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent, handler: () => void) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -414,15 +423,25 @@ export default function SocraticCoach() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium mb-3 text-primary">Describe your challenge</label>
-                  <Textarea
-                    value={problem}
-                    onChange={(e) => setProblem(e.target.value)}
-                    placeholder="Tell me about what's challenging you... The more detail you provide, the better I can help you explore it."
-                    className="min-h-[140px] border-2 border-primary/20 focus:border-primary/40"
-                    data-testid="textarea-problem"
-                  />
+                  <div className="relative">
+                    <Textarea
+                      value={problem}
+                      onChange={(e) => setProblem(e.target.value)}
+                      placeholder="Tell me about what's challenging you... The more detail you provide, the better I can help you explore it."
+                      className="min-h-[140px] border-2 border-primary/20 focus:border-primary/40 pr-14"
+                      data-testid="textarea-problem"
+                    />
+                    <Button
+                      onClick={() => setIsInitialVoiceModalOpen(true)}
+                      variant="outline"
+                      className="absolute top-3 right-3 p-2 border-accent/30 hover:bg-accent/10"
+                      data-testid="button-voice-input"
+                    >
+                      <Mic className="w-4 h-4 text-accent" />
+                    </Button>
+                  </div>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-sm text-secondary/60">Minimum 20 characters</span>
+                    <span className="text-sm text-secondary/60">Minimum 20 characters • Click <Mic className="w-3 h-3 inline text-accent" /> to speak</span>
                     <span className="text-sm text-secondary">{problem.length} characters</span>
                   </div>
                 </div>
@@ -807,13 +826,22 @@ export default function SocraticCoach() {
           </Card>
         )}
 
-        {/* Voice Modal */}
+        {/* Voice Modal for Coaching */}
         <VoiceModal
           isOpen={isVoiceModalOpen}
           onClose={() => setIsVoiceModalOpen(false)}
           onSendMessage={handleVoiceMessage}
           isProcessing={isLoading}
           lastResponse={lastCoachResponse}
+        />
+
+        {/* Voice Modal for Initial Problem Input */}
+        <VoiceModal
+          isOpen={isInitialVoiceModalOpen}
+          onClose={() => setIsInitialVoiceModalOpen(false)}
+          onSendMessage={handleInitialVoiceMessage}
+          isProcessing={isLoading}
+          lastResponse=""
         />
       </main>
     </div>
