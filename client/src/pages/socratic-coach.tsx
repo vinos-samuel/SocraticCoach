@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2 } from "lucide-react";
+import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { VoiceModal } from "@/components/ui/voice-modal";
 
 interface Question {
   question: string;
@@ -29,6 +30,8 @@ export default function SocraticCoach() {
   const [coachingInput, setCoachingInput] = useState('');
   const [actionPlan, setActionPlan] = useState('');
   const [maxQuestions] = useState(6);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [lastCoachResponse, setLastCoachResponse] = useState('');
   const { toast } = useToast();
 
   const generateQuestion = async (isFirst = false) => {
@@ -202,6 +205,7 @@ export default function SocraticCoach() {
       } else {
         const assistantMessage: CoachingMessage = { role: 'assistant', content: data.response };
         setCoachingMessages(prev => [...prev, assistantMessage]);
+        setLastCoachResponse(data.response);
       }
       
     } catch (error) {
@@ -214,6 +218,11 @@ export default function SocraticCoach() {
     }
     
     setIsLoading(false);
+  };
+
+  const handleVoiceMessage = (message: string) => {
+    setCoachingInput(message);
+    handleCoachingSubmit();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent, handler: () => void) => {
@@ -774,19 +783,38 @@ export default function SocraticCoach() {
                     rows={2}
                     data-testid="textarea-coaching"
                   />
-                  <Button
-                    onClick={handleCoachingSubmit}
-                    disabled={!coachingInput.trim() || isLoading}
-                    className="bg-gradient-to-r from-accent to-primary text-white p-3"
-                    data-testid="button-send"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                  </Button>
+                  <div className="flex flex-col space-y-2">
+                    <Button
+                      onClick={() => setIsVoiceModalOpen(true)}
+                      variant="outline"
+                      className="p-3 border-accent/30 hover:bg-accent/10"
+                      data-testid="button-voice"
+                    >
+                      <Mic className="w-5 h-5 text-accent" />
+                    </Button>
+                    <Button
+                      onClick={handleCoachingSubmit}
+                      disabled={!coachingInput.trim() || isLoading}
+                      className="bg-gradient-to-r from-accent to-primary text-white p-3"
+                      data-testid="button-send"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Voice Modal */}
+        <VoiceModal
+          isOpen={isVoiceModalOpen}
+          onClose={() => setIsVoiceModalOpen(false)}
+          onSendMessage={handleVoiceMessage}
+          isProcessing={isLoading}
+          lastResponse={lastCoachResponse}
+        />
       </main>
     </div>
   );
