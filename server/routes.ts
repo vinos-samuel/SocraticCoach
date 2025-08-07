@@ -2,6 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import Anthropic from '@anthropic-ai/sdk';
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import mammoth from "mammoth";
 
 // The newest Anthropic model is "claude-sonnet-4-20250514", not "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022" nor "claude-3-sonnet-20240229"
 const DEFAULT_MODEL_STR = "claude-sonnet-4-20250514";
@@ -10,7 +14,97 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY || "default_key",
 });
 
+// Configure multer for file uploads
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  },
+});
+
+// Helper function to extract text from different file types
+async function extractTextFromFile(filePath: string, mimetype: string): Promise<string> {
+  try {
+    if (mimetype === 'text/plain') {
+      return fs.readFileSync(filePath, 'utf8');
+    } else if (mimetype === 'application/pdf') {
+      // Dynamic import to avoid initialization issues
+      const pdfParse = (await import('pdf-parse')).default;
+      const dataBuffer = fs.readFileSync(filePath);
+      const data = await pdfParse(dataBuffer);
+      return data.text;
+    } else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const result = await mammoth.extractRawText({ path: filePath });
+      return result.value;
+    } else if (mimetype === 'application/msword') {
+      // For .doc files, we'll try mammoth but it may not work perfectly
+      const result = await mammoth.extractRawText({ path: filePath });
+      return result.value;
+    } else {
+      throw new Error('Unsupported file type');
+    }
+  } catch (error) {
+    console.error('Error extracting text:', error);
+    throw error;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Document upload endpoint
+  app.post("/api/upload-document", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const filePath = req.file.path;
+      const mimetype = req.file.mimetype;
+
+      // Extract text from the uploaded file
+      const extractedText = await extractTextFromFile(filePath, mimetype);
+      
+      // Clean up the uploaded file
+      fs.unlinkSync(filePath);
+
+      if (!extractedText.trim()) {
+        return res.status(400).json({ error: "Could not extract text from the document" });
+      }
+
+      // Truncate if too long (keep reasonable limit for processing)
+      const maxLength = 5000;
+      const content = extractedText.length > maxLength 
+        ? extractedText.substring(0, maxLength) + "..."
+        : extractedText;
+
+      res.json({ 
+        content: content.trim(),
+        originalLength: extractedText.length,
+        truncated: extractedText.length > maxLength
+      });
+
+    } catch (error) {
+      console.error('Error processing document:', error);
+      
+      // Clean up file if it exists
+      if (req.file?.path) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (cleanupError) {
+          console.error('Error cleaning up file:', cleanupError);
+        }
+      }
+
+      res.status(500).json({ error: "Failed to process document" });
+    }
+  });
   // Generate Socratic question
   app.post("/api/generate-question", async (req, res) => {
     try {

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic } from "lucide-react";
+import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic, Upload, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceModal } from "@/components/ui/voice-modal";
@@ -33,6 +33,8 @@ export default function SocraticCoach() {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [lastCoachResponse, setLastCoachResponse] = useState('');
   const [isInitialVoiceModalOpen, setIsInitialVoiceModalOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isFileProcessing, setIsFileProcessing] = useState(false);
   const { toast } = useToast();
 
   const generateQuestion = async (isFirst = false) => {
@@ -234,6 +236,73 @@ export default function SocraticCoach() {
     }, 500);
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a text file, PDF, or Word document",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload a file smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadedFile(file);
+    setIsFileProcessing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setProblem(data.content);
+      
+      toast({
+        title: "Document uploaded",
+        description: "Content extracted and ready for coaching",
+      });
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload failed",
+        description: "Could not process the document. Please try again.",
+        variant: "destructive"
+      });
+      setUploadedFile(null);
+    }
+
+    setIsFileProcessing(false);
+  };
+
+  const removeUploadedFile = () => {
+    setUploadedFile(null);
+    setProblem('');
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent, handler: () => void) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -416,32 +485,104 @@ export default function SocraticCoach() {
                   What's on your mind?
                 </h2>
                 <p className="text-lg text-secondary max-w-2xl mx-auto">
-                  Describe the situation, problem, or decision you're facing. I'll help you think through it with thoughtful questions.
+                  Describe the situation, problem, or decision you're facing. Type it out, upload a document, or speak it aloud.
                 </p>
               </div>
               
               <div className="space-y-6">
+                {/* File Upload Section */}
                 <div>
-                  <label className="block text-sm font-medium mb-3 text-primary">Describe your challenge</label>
+                  <label className="block text-sm font-medium mb-3 text-primary">Upload a document (optional)</label>
+                  <div className="border-2 border-dashed border-primary/20 rounded-lg p-6 text-center hover:border-primary/40 transition-colors">
+                    {uploadedFile ? (
+                      <div className="flex items-center justify-between bg-primary/5 rounded-lg p-4">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="w-8 h-8 text-primary" />
+                          <div className="text-left">
+                            <p className="font-medium text-primary">{uploadedFile.name}</p>
+                            <p className="text-sm text-secondary">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={removeUploadedFile}
+                          variant="ghost"
+                          size="sm"
+                          className="text-secondary hover:text-destructive"
+                          data-testid="button-remove-file"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload className="w-12 h-12 text-primary/60 mx-auto mb-4" />
+                        <p className="text-primary font-medium mb-2">Upload your document</p>
+                        <p className="text-sm text-secondary mb-4">
+                          Text files, PDFs, and Word documents supported (max 5MB)
+                        </p>
+                        <input
+                          type="file"
+                          id="file-upload"
+                          accept=".txt,.pdf,.doc,.docx"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          data-testid="input-file"
+                        />
+                        <Button
+                          onClick={() => document.getElementById('file-upload')?.click()}
+                          variant="outline"
+                          disabled={isFileProcessing}
+                          className="border-primary/30 hover:bg-primary/5"
+                          data-testid="button-upload"
+                        >
+                          {isFileProcessing ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4 mr-2" />
+                              Choose File
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Text Input Section */}
+                <div>
+                  <label className="block text-sm font-medium mb-3 text-primary">
+                    {uploadedFile ? "Document content" : "Describe your challenge"}
+                  </label>
                   <div className="relative">
                     <Textarea
                       value={problem}
                       onChange={(e) => setProblem(e.target.value)}
-                      placeholder="Tell me about what's challenging you... The more detail you provide, the better I can help you explore it."
+                      placeholder={uploadedFile ? "Content from your document will appear here..." : "Tell me about what's challenging you... The more detail you provide, the better I can help you explore it."}
                       className="min-h-[140px] border-2 border-primary/20 focus:border-primary/40 pr-14"
                       data-testid="textarea-problem"
+                      readOnly={uploadedFile !== null && isFileProcessing}
                     />
-                    <Button
-                      onClick={() => setIsInitialVoiceModalOpen(true)}
-                      variant="outline"
-                      className="absolute top-3 right-3 p-2 border-accent/30 hover:bg-accent/10"
-                      data-testid="button-voice-input"
-                    >
-                      <Mic className="w-4 h-4 text-accent" />
-                    </Button>
+                    {!uploadedFile && (
+                      <Button
+                        onClick={() => setIsInitialVoiceModalOpen(true)}
+                        variant="outline"
+                        className="absolute top-3 right-3 p-2 border-accent/30 hover:bg-accent/10"
+                        data-testid="button-voice-input"
+                      >
+                        <Mic className="w-4 h-4 text-accent" />
+                      </Button>
+                    )}
                   </div>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-sm text-secondary/60">Minimum 20 characters • Click <Mic className="w-3 h-3 inline text-accent" /> to speak</span>
+                    <span className="text-sm text-secondary/60">
+                      {uploadedFile ? "Edit as needed before starting" : "Minimum 20 characters • Click"} 
+                      {!uploadedFile && <Mic className="w-3 h-3 inline text-accent mx-1" />}
+                      {!uploadedFile && "to speak"}
+                    </span>
                     <span className="text-sm text-secondary">{problem.length} characters</span>
                   </div>
                 </div>
