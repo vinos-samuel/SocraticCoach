@@ -1,6 +1,6 @@
 # Overview
 
-This is a comprehensive Socratic thinking coach web application that helps users work through problems using the Socratic method. The application guides users through a structured process of self-reflection by asking thoughtful questions, generating summaries, providing coaching, and creating action plans. Key features include conversation memory through threading, comprehensive export functionality, and hands-free voice interaction capabilities. It's built as a full-stack TypeScript application with a React frontend and Express backend.
+This is a comprehensive Socratic thinking coach application available as both a web application and mobile app for iOS and Android app stores. The application guides users through a structured process of self-reflection by asking thoughtful questions, generating summaries, providing coaching, and creating action plans. Key features include conversation memory through threading, comprehensive export functionality, hands-free voice interaction capabilities, and cross-platform mobile deployment. It's built as a full-stack TypeScript application with a React web frontend, React Native mobile app, and Express backend.
 
 # User Preferences
 
@@ -9,6 +9,8 @@ Preferred communication style: Simple, everyday language.
 # System Architecture
 
 ## Frontend Architecture
+
+### Web Application
 - **Framework**: React with TypeScript using Vite for build tooling
 - **UI Library**: shadcn/ui components built on Radix UI primitives
 - **Styling**: Tailwind CSS with custom design tokens and dark/light mode support
@@ -16,6 +18,15 @@ Preferred communication style: Simple, everyday language.
 - **HTTP Client**: Custom fetch-based API client with React Query for server state management
 - **Routing**: Wouter for lightweight client-side routing
 - **Form Handling**: React Hook Form with Zod validation
+
+### Mobile Application (iOS & Android)
+- **Framework**: React Native with Expo framework for cross-platform development
+- **Navigation**: Expo Router for type-safe file-based routing
+- **UI Components**: Custom React Native components with NativeWind for styling
+- **Styling**: NativeWind (Tailwind CSS for React Native) with design system consistency
+- **State Management**: TanStack Query for server state, AsyncStorage for local persistence
+- **Build System**: Expo Application Services (EAS) for app store deployment
+- **Platform Support**: iOS App Store and Google Play Store ready
 
 ## Backend Architecture
 - **Framework**: Express.js with TypeScript
@@ -51,5 +62,15 @@ Preferred communication style: Simple, everyday language.
 - **Conversation Threading**: Database-backed conversation memory system for contextual awareness
 - **Voice Interaction**: Hands-free coaching through speech recognition and synthesis
 - **Export Functionality**: Download, copy, and email sharing of sessions and action plans  
-- **Mobile Optimization**: Responsive design with touch-friendly voice controls
+- **Cross-Platform Mobile Apps**: Native iOS and Android applications for app store deployment
+- **Mobile Optimization**: Touch-friendly interface with native mobile UX patterns
 - **Real-time Processing**: Live transcription and instant AI responses during voice sessions
+- **App Store Deployment**: Production-ready mobile apps with EAS build system
+
+## Mobile App Architecture
+- **Entry Point**: `mobile/app/_layout.tsx` - Root navigation and providers setup
+- **Main Screens**: Landing (`index.tsx`), Coaching (`coach.tsx`), History (`history.tsx`)
+- **API Integration**: Shared backend endpoints with web app for consistency
+- **Build Configuration**: `eas.json` for iOS App Store and Google Play Store deployment
+- **Asset Management**: `mobile/assets/` directory for app icons and splash screens
+- **Development Workflow**: Expo CLI with hot reload and device testing capabilities
