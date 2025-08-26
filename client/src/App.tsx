@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import SocraticCoach from "@/pages/socratic-coach";
+import ConversationHistory from "@/pages/conversation-history";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -18,6 +19,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={SocraticCoach} />
+          <Route path="/history" component={ConversationHistory} />
         </>
       )}
       <Route component={NotFound} />

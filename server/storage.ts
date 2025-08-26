@@ -123,9 +123,13 @@ export class DatabaseStorage implements IStorage {
     actionPlan?: string; 
     coachingMessages: string 
   }): Promise<ConversationThread> {
+    // Generate title from problem (first 50 characters)
+    const title = data.problem.slice(0, 50) + (data.problem.length > 50 ? '...' : '');
+    
     if (data.threadId) {
       // Update existing thread
       return await this.updateThread(data.threadId, {
+        title,
         problem: data.problem,
         questions: data.questions,
         summary: data.summary,
@@ -136,6 +140,7 @@ export class DatabaseStorage implements IStorage {
       // Create new thread
       return await this.createThread({
         userId: data.userId,
+        title,
         problem: data.problem,
         questions: data.questions,
         summary: data.summary,

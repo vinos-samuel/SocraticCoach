@@ -324,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/conversations", isAuthenticated, async (req, res) => {
     try {
       const { threadId, problem, questions, summary, actionPlan, coachingMessages } = req.body;
-      const userId = req.user?.claims?.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
@@ -340,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         coachingMessages: JSON.stringify(coachingMessages || [])
       });
 
-      res.json({ threadId: conversation.threadId });
+      res.json({ threadId: conversation.id });
       
     } catch (error) {
       console.error('Error saving conversation:', error);
@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user conversations
   app.get("/api/conversations", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
@@ -363,6 +363,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching conversations:', error);
       res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  // Email integration for sharing insights
+  app.post("/api/email/send", isAuthenticated, async (req, res) => {
+    try {
+      const { subject, content } = req.body;
+      const user = (req.user as any)?.claims;
+      
+      if (!user?.email) {
+        return res.status(400).json({ error: "User email not available" });
+      }
+
+      // For now, we'll create a shareable text format that users can copy and email manually
+      // In production, you'd integrate with SendGrid or another email service
+      const formattedContent = `${content}\n\n---\nShared from Socratic Coach - AI-Powered Thinking Partner`;
+      
+      // Create a downloadable email content file
+      res.json({ 
+        success: true,
+        emailContent: formattedContent,
+        recipient: user.email,
+        subject: subject,
+        message: "Email content prepared. You can copy this and send it via your preferred email client."
+      });
+      
+    } catch (error) {
+      console.error('Error preparing email:', error);
+      res.status(500).json({ error: "Failed to prepare email content" });
     }
   });
 

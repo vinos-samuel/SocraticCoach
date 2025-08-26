@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic, Upload, X, LogOut, User as UserIcon } from "lucide-react";
+import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic, Upload, X, LogOut, User as UserIcon, History } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { VoiceModal } from "@/components/ui/voice-modal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link } from "wouter";
 import type { User } from "@shared/schema";
 
 interface Question {
@@ -435,12 +436,6 @@ export default function SocraticCoach() {
     copyToClipboard(content);
   };
 
-  const handleEmailSession = () => {
-    const content = generateSessionText(stage === 'coaching');
-    const subject = `Socratic Thinking Session - ${problem.substring(0, 50)}...`;
-    shareViaEmail(content, subject);
-  };
-
   const handleDownloadActionPlan = () => {
     if (!actionPlan) return;
     const content = `ACTION PLAN\nGenerated: ${new Date().toLocaleString()}\n\nOriginal Problem: ${problem}\n\n${actionPlan}`;
@@ -451,6 +446,92 @@ export default function SocraticCoach() {
   const handleCopyActionPlan = () => {
     if (!actionPlan) return;
     copyToClipboard(actionPlan);
+  };
+
+  const handleEmailSession = async () => {
+    if (!summary) return;
+    
+    try {
+      let content = `I wanted to share insights from my recent thinking session:\n\n`;
+      content += `**Problem I worked through:**\n${problem}\n\n`;
+      
+      if (questions.length > 0) {
+        content += `**Key Questions & Insights:**\n`;
+        questions.forEach((q, index) => {
+          content += `${index + 1}. ${q.question}\n   → ${q.answer}\n\n`;
+        });
+      }
+      
+      content += `**Summary:**\n${summary}\n\n`;
+      
+      if (actionPlan) {
+        content += `**Action Plan:**\n${actionPlan}\n\n`;
+      }
+
+      const response = await apiRequest('POST', '/api/email/send', {
+        subject: `My Thinking Session Insights - ${new Date().toLocaleDateString()}`,
+        content: content
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await navigator.clipboard.writeText(data.emailContent);
+        
+        toast({
+          title: "Email Content Ready",
+          description: "Email content copied to clipboard! You can paste it into any email client to share your insights."
+        });
+      } else {
+        throw new Error(data.error || 'Failed to prepare email');
+      }
+    } catch (error) {
+      console.error('Error preparing email:', error);
+      toast({
+        title: "Email Preparation Failed",
+        description: "Could not prepare email content. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEmailActionPlan = async () => {
+    if (!actionPlan) return;
+    
+    try {
+      let content = `I wanted to share my action plan from a recent thinking session:\n\n`;
+      content += `**Original Problem:**\n${problem}\n\n`;
+      content += `**My Action Plan:**\n${actionPlan}\n\n`;
+      
+      if (summary) {
+        content += `**Key Insights:**\n${summary}`;
+      }
+
+      const response = await apiRequest('POST', '/api/email/send', {
+        subject: `My Action Plan - ${new Date().toLocaleDateString()}`,
+        content: content
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await navigator.clipboard.writeText(data.emailContent);
+        
+        toast({
+          title: "Email Content Ready",
+          description: "Action plan copied to clipboard! You can paste it into any email client to share."
+        });
+      } else {
+        throw new Error(data.error || 'Failed to prepare email');
+      }
+    } catch (error) {
+      console.error('Error preparing email:', error);
+      toast({
+        title: "Email Preparation Failed",
+        description: "Could not prepare email content. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDownloadCoaching = () => {
@@ -483,6 +564,17 @@ export default function SocraticCoach() {
           </div>
           
           <div className="flex items-center space-x-3">
+            <Link href="/history">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-secondary hover:text-primary"
+                data-testid="button-history"
+              >
+                <History className="w-5 h-5" />
+              </Button>
+            </Link>
+            
             {stage !== 'initial' && (
               <Button
                 variant="ghost"
@@ -881,6 +973,16 @@ export default function SocraticCoach() {
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     Copy Plan
+                  </Button>
+                  <Button
+                    onClick={handleEmailActionPlan}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="button-email-action-plan"
+                  >
+                    <Mail className="w-4 h-4 mr-1" />
+                    Email Plan
                   </Button>
                   <Button
                     onClick={handleDownloadSession}

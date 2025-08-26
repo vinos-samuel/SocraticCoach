@@ -32,8 +32,10 @@ export const conversationThreads = pgTable("conversation_threads", {
   userId: varchar("user_id").notNull(), // Required - all conversations belong to authenticated users
   title: text("title").notNull(), // Auto-generated from problem description
   problem: text("problem").notNull(), // Original problem description
+  questions: text("questions"), // JSON string of questions and answers
   summary: text("summary"), // Generated insights and summary
   actionPlan: text("action_plan"), // Generated action plan
+  coachingMessages: text("coaching_messages"), // JSON string of coaching conversation
   status: text("status").notNull().default("active"), // active, completed, archived
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -78,8 +80,10 @@ export const insertConversationThreadSchema = createInsertSchema(conversationThr
   userId: true,
   title: true,
   problem: true,
+  questions: true,
   summary: true,
   actionPlan: true,
+  coachingMessages: true,
   status: true,
 });
 
