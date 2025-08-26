@@ -1,8 +1,9 @@
 // API client for React Native app
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Use your Replit deployment URL here - this should be configurable
-const API_BASE_URL = __DEV__ ? 'http://localhost:5000' : 'https://your-app.replit.app';
+// Replace with your actual Replit deployment URL
+// Example: 'https://socratic-coach-username.replit.app'
+const API_BASE_URL = __DEV__ ? 'http://localhost:5000' : 'https://your-actual-replit-url.replit.app';
 
 class ApiClient {
   private baseUrl: string;
