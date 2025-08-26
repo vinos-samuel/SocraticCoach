@@ -1,11 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import Anthropic from '@anthropic-ai/sdk';
 import multer from "multer";
 import fs from "fs";
 import path from "path";
 import mammoth from "mammoth";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 
 // The newest Anthropic model is "claude-sonnet-4-20250514", not "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022" nor "claude-3-sonnet-20240229"
 const DEFAULT_MODEL_STR = "claude-sonnet-4-20250514";
@@ -58,8 +60,23 @@ async function extractTextFromFile(filePath: string, mimetype: string): Promise<
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Document upload endpoint
-  app.post("/api/upload-document", upload.single('file'), async (req, res) => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Document upload endpoint (protected)
+  app.post("/api/upload-document", isAuthenticated, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -300,6 +317,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to generate coaching response",
         fallbackResponse: "I understand you're working through this challenge. Can you tell me more about what specific aspect you'd like to explore?"
       });
+    }
+  });
+
+  // Save conversation
+  app.post("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const { threadId, problem, questions, summary, actionPlan, coachingMessages } = req.body;
+      const userId = req.user?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const conversation = await storage.saveConversation({
+        threadId,
+        userId,
+        problem,
+        questions: JSON.stringify(questions || []),
+        summary,
+        actionPlan,
+        coachingMessages: JSON.stringify(coachingMessages || [])
+      });
+
+      res.json({ threadId: conversation.threadId });
+      
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+      res.status(500).json({ error: "Failed to save conversation" });
+    }
+  });
+
+  // Get user conversations
+  app.get("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const conversations = await storage.getUserConversations(userId);
+      res.json(conversations);
+      
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
 

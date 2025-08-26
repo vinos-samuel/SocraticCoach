@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic, Upload, X } from "lucide-react";
+import { Loader2, Lightbulb, MessageCircle, CheckCircle, FileText, RotateCcw, Download, Copy, Mail, Share2, Mic, Upload, X, LogOut, User as UserIcon } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { VoiceModal } from "@/components/ui/voice-modal";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { User } from "@shared/schema";
 
 interface Question {
   question: string;
@@ -19,6 +23,7 @@ interface CoachingMessage {
 }
 
 export default function SocraticCoach() {
+  const { user } = useAuth() as { user: User | undefined };
   const [stage, setStage] = useState<'initial' | 'questioning' | 'summary' | 'coaching' | 'actionplan'>('initial');
   const [problem, setProblem] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -35,7 +40,36 @@ export default function SocraticCoach() {
   const [isInitialVoiceModalOpen, setIsInitialVoiceModalOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isFileProcessing, setIsFileProcessing] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Save conversation to database
+  const saveConversation = async () => {
+    try {
+      const response = await apiRequest('POST', '/api/conversations', {
+        threadId: currentThreadId,
+        problem,
+        questions,
+        summary,
+        actionPlan,
+        coachingMessages
+      });
+      
+      const data = await response.json();
+      if (data.threadId && !currentThreadId) {
+        setCurrentThreadId(data.threadId);
+      }
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+    }
+  };
+
+  // Auto-save conversation when significant progress is made
+  useEffect(() => {
+    if (user && (questions.length > 0 || summary || actionPlan)) {
+      saveConversation();
+    }
+  }, [questions, summary, actionPlan, user]);
 
   const generateQuestion = async (isFirst = false) => {
     setIsLoading(true);
@@ -447,17 +481,54 @@ export default function SocraticCoach() {
               <p className="text-sm text-secondary hidden sm:block">Think through challenges with guided questions</p>
             </div>
           </div>
-          {stage !== 'initial' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetApp}
-              className="text-secondary hover:text-primary"
-              data-testid="button-reset"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </Button>
-          )}
+          
+          <div className="flex items-center space-x-3">
+            {stage !== 'initial' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetApp}
+                className="text-secondary hover:text-primary"
+                data-testid="button-reset"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </Button>
+            )}
+            
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full" data-testid="button-user-menu">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user?.profileImageUrl || ''} alt={user?.firstName || 'User'} />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {user?.firstName ? user.firstName.charAt(0) : <UserIcon className="h-4 w-4" />}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {user?.firstName && (
+                      <p className="font-medium text-sm">
+                        {user.firstName} {user.lastName || ''}
+                      </p>
+                    )}
+                    {user?.email && (
+                      <p className="w-[200px] truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenuItem onClick={() => window.location.href = '/api/logout'} data-testid="button-logout">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
