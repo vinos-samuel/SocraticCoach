@@ -3,17 +3,36 @@
     "name": "Socratic Coach Mobile",
     "slug": "socratic-coach",
     "version": "1.0.0",
-    "platforms": ["ios", "android"],
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./mobile/assets/icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./mobile/assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "scheme": "socratic-coach",
+    "assetBundlePatterns": [
+      "mobile/**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.socraticcoach.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./mobile/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.socraticcoach.app"
+    },
     "web": {
+      "favicon": "./mobile/assets/favicon.png",
       "bundler": "metro"
+    },
+    "scheme": "socratic-coach",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
