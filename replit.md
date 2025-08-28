@@ -68,9 +68,11 @@ Preferred communication style: Simple, everyday language.
 - **App Store Deployment**: Production-ready mobile apps with EAS build system
 
 ## Mobile App Architecture
-- **Entry Point**: `mobile/app/_layout.tsx` - Root navigation and providers setup
+- **Repository**: Deployed as separate repository for Expo Launch compatibility
+- **Entry Point**: `app/_layout.tsx` - Root navigation and providers setup
 - **Main Screens**: Landing (`index.tsx`), Coaching (`coach.tsx`), History (`history.tsx`)
-- **API Integration**: Shared backend endpoints with web app for consistency
+- **API Integration**: Connects to web app backend for data synchronization
 - **Build Configuration**: `eas.json` for iOS App Store and Google Play Store deployment
-- **Asset Management**: `mobile/assets/` directory for app icons and splash screens
-- **Development Workflow**: Expo CLI with hot reload and device testing capabilities
+- **Asset Management**: `assets/` directory with generated app icons and splash screens
+- **Development Workflow**: Expo Launch for instant preview and testing, EAS Build for app store deployment
+- **Deployment Status**: Successfully configured and tested with Expo Launch (August 2025)
