@@ -3,6 +3,7 @@
     "name": "Socratic Coach",
     "slug": "socratic-coach",
     "version": "1.0.0",
+    "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
